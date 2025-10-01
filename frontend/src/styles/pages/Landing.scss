@@ -1,0 +1,39 @@
+.landing {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr; /* Adjust the column sizes as needed */
+
+  .left {
+    padding: 50px;
+    padding-top: 20px;
+    padding-left: 100px;
+    background: rebeccapurple;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .logo {
+      padding-bottom: 80px;
+      display: flex;
+      align-items: center;
+      font-size: 30px;
+      transform: translateX(-14px);
+
+      img {
+        width: 150px;
+      }
+    }
+
+    .button-wrapper {
+      padding-top: 50px;
+      // padding-left: 10px;
+    }
+  }
+
+  .right {
+    display: flex;
+    justify-content: center;
+    margin-right: auto;
+    size: 10cm;
+  }
+}
