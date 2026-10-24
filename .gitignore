@@ -1,9 +1,14 @@
-# Ignore build output
-build/
-
-# Ignore node dependencies
+# dependencies and build output
 node_modules/
-node_modules/**/*
+build/
+dist/
+coverage/
 
-# Ignore environment files
+# secrets and local config (never commit these)
 .env
+.env.*
+!.env.example
+
+# logs and editor noise
+*.log
+.DS_Store

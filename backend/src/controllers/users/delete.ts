@@ -1,16 +1,16 @@
 import { Request, Response } from "express";
 import { User } from "../../entity/User";
+import { HttpError } from "../../utils/http";
 
 export default async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, "invalid id");
+  if (id === req.user!.id) throw new HttpError(400, "you cannot delete your own account");
 
-  if (!id) return res.status(400).send("no id found");
+  const user = await User.findOne({ where: { id } });
+  if (!user) throw new HttpError(404, "no such user");
+  if (user.admin) throw new HttpError(400, "admin accounts cannot be deleted here");
 
-  try {
-    await User.delete(id);
-  } catch (error) {
-    return res.status(400).send({ error });
-  }
-
-  return res.send({ userId: id });
+  await user.remove();
+  res.send({ userId: id });
 };

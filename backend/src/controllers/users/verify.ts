@@ -1,31 +1,19 @@
 import { Request, Response } from "express";
-import { User } from "../../entity/User";
 import * as yup from "yup";
+import { User } from "../../entity/User";
+import { HttpError } from "../../utils/http";
+import { toPublicUser } from "../../utils/user";
+import { validate } from "../../utils/validate";
 
-const schema = yup.object({
-  body: yup.object({
-    userId: yup.number().integer().required(),
-  }),
-});
+const schema = yup.object({ userId: yup.number().integer().positive().required() });
 
 export default async (req: Request, res: Response) => {
-  try {
-    await schema.validate(req);
-  } catch (error: any) {
-    return res.status(400).send(error.errors);
-  }
+  const { userId } = await validate(schema, req.body);
 
-  let user;
-
-  try {
-    user = await User.findOneOrFail({ where: { id: req.body.userId } });
-  } catch (error) {
-    return res.status(400).send({ error });
-  }
+  const user = await User.findOne({ where: { id: userId } });
+  if (!user) throw new HttpError(404, "no such user");
 
   user.verified = true;
-
-  await User.save(user);
-
-  return res.send({ user });
+  await user.save();
+  res.send({ user: toPublicUser(user) });
 };

@@ -1,16 +1,9 @@
 import { Request, Response } from "express";
-import ElectionContract, { web3 } from "../../web3";
+import { ElectionChain } from "../../chain";
+import { HttpError } from "../../utils/http";
 
-export default async (_: Request, res: Response) => {
-  const accounts = await web3.eth.getAccounts();
-  const instance = await ElectionContract.deployed();
-
-  const status = await instance.getStatus();
-
-  if (status !== "finished")
-    return res.status(400).send("election not finished or already reset");
-
-  await instance.resetElection({ from: accounts[0] });
-
-  return res.send("successful");
+export default (chain: ElectionChain) => async (_req: Request, res: Response) => {
+  if ((await chain.status()) !== "finished") throw new HttpError(400, "election not finished or already reset");
+  await chain.reset();
+  res.send("successful");
 };

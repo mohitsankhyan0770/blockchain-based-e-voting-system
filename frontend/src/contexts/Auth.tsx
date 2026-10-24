@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import axios from "../axios";
+import axios, { setAccessToken } from "../axios";
 
 type ContextProps = {
   children: JSX.Element;
@@ -39,16 +39,24 @@ export default (props: ContextProps): JSX.Element => {
     axios
       .post("/auth/check")
       .then((res) => authenticate(res.data.user, res.data.accessToken, false))
-      .catch((error) => {
-        console.log(error);
-        setAuthentication({ ...authentication, loading: false });
+      .catch(() => {
+        // no valid session (never logged in, expired, or the account was removed)
+        setAccessToken("");
+        setAuthentication({
+          id: 0,
+          name: "",
+          isAdmin: false,
+          authenticated: false,
+          accessToken: "",
+          loading: false,
+        });
       });
   };
 
   useEffect(() => {
     checkAuthentication();
 
-    const interval = setInterval(checkAuthentication, 5 * 1000);
+    const interval = setInterval(checkAuthentication, 4 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -58,6 +66,7 @@ export default (props: ContextProps): JSX.Element => {
     token: string,
     redirect: boolean = true
   ) => {
+    setAccessToken(token);
     setAuthentication({
       id: user.id,
       name: user.name,
@@ -72,6 +81,7 @@ export default (props: ContextProps): JSX.Element => {
 
   const logout = async () => {
     await axios.post("/auth/logout");
+    setAccessToken("");
 
     setAuthentication({
       id: 0,

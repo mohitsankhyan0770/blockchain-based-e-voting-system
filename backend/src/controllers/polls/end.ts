@@ -1,20 +1,9 @@
 import { Request, Response } from "express";
-import ElectionContract, { web3 } from "../../web3";
-import memoryCache from "memory-cache";
+import { ElectionChain } from "../../chain";
+import { HttpError } from "../../utils/http";
+import { toVoteMap } from "./shared";
 
-export default async (_: Request, res: Response) => {
-  const accounts = await web3.eth.getAccounts();
-  const instance = await ElectionContract.deployed();
-
-  const status = await instance.getStatus();
-
-  if (status !== "running") return res.status(400).send("election not started");
-
-  await instance.endElection({ from: accounts[0] });
-
-  const votes = await instance.getVotes();
-
-  memoryCache.clear();
-
-  return res.send({ votes });
+export default (chain: ElectionChain) => async (_req: Request, res: Response) => {
+  if ((await chain.status()) !== "running") throw new HttpError(400, "election not started");
+  res.send({ votes: toVoteMap(await chain.end()) });
 };

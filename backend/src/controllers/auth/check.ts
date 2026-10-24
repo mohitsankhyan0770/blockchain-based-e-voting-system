@@ -1,55 +1,33 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import dayjs from "dayjs";
+import { Config } from "../../config";
+import { User } from "../../entity/User";
+import { HttpError } from "../../utils/http";
+import { issueTokens, REFRESH_COOKIE, refreshCookieOptions } from "../../utils/tokens";
+import { toPublicUser } from "../../utils/user";
 
-export default async (req: Request, res: Response) => {
-  const refreshToken = req.cookies.refreshToken;
+/** Exchanges the refresh cookie for a new access token (and rotates the cookie). */
+export default (config: Config) => async (req: Request, res: Response) => {
+  const token = req.cookies?.[REFRESH_COOKIE];
+  if (!token) throw new HttpError(401, "not authenticated");
 
-  if (!refreshToken) return res.status(400).send("not authenticated");
+  const reject = (message: string) => {
+    res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(config), maxAge: undefined });
+    return new HttpError(401, message);
+  };
 
+  let userId: number;
   try {
-    const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
-    const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
-
-    if (!accessTokenSecret || !refreshTokenSecret) {
-      console.log("did you forget to add .env file to the project?");
-      console.log(`
-                    add the following:
-
-                    ACCESS_TOKEN_SECRET=976a66a5bd23b2050019f380c4decbbefdf8ff91cf502c68a3fe1ced91d7448cc54ce6c847657d53294e40889cef5bd996ec5b0fefc1f56270e06990657eeb6e
-
-                    REFRESH_TOKEN_SECRET=5f567afa6406225c4a759daae77e07146eca5df8149353a844fa9ab67fba22780cb4baa5ea508214934531a6f35e67e96f16a0328559111c597856c660f177c2
-      `);
-
-      return res.status(500).send("server error");
-    }
-
-    const user: any = jwt.verify(refreshToken, refreshTokenSecret);
-
-    const userPlainObj = {
-      id: user.id,
-      name: user.name,
-      phone: user.phone,
-      email: user.email,
-      admin: user.admin,
-    };
-
-    const accessToken = jwt.sign(userPlainObj, accessTokenSecret, {
-      expiresIn: 60, // 10 minutes
-    });
-
-    const newRefreshToken = jwt.sign(userPlainObj, refreshTokenSecret, {
-      expiresIn: "7d",
-    });
-
-    res.cookie("refresh", newRefreshToken, {
-      secure: true,
-      httpOnly: true,
-      expires: dayjs().add(7, "days").toDate(),
-    });
-
-    return res.status(200).send({ user: userPlainObj, accessToken });
-  } catch (error) {
-    return res.status(400).send(error);
+    const payload = jwt.verify(token, config.refreshTokenSecret, { algorithms: ["HS256"] });
+    userId = Number(typeof payload === "object" ? payload.sub : NaN);
+  } catch {
+    throw reject("session expired");
   }
+
+  const user = Number.isInteger(userId) ? await User.findOne({ where: { id: userId } }) : undefined;
+  if (!user || !user.verified) throw reject("account not available");
+
+  const tokens = issueTokens(config, user);
+  res.cookie(REFRESH_COOKIE, tokens.refreshToken, refreshCookieOptions(config));
+  res.send({ user: toPublicUser(user), accessToken: tokens.accessToken });
 };

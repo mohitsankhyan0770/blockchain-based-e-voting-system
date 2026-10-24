@@ -5,8 +5,6 @@ import { AuthContext } from "../../contexts/Auth";
 const Profile = (props: RouteProps) => {
   const authContext = useContext(AuthContext);
 
-  console.log({ authContext });
-
   return (
     <div className="profile-wrapper">
       <div className="left-panel">

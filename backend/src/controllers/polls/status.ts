@@ -1,10 +1,6 @@
 import { Request, Response } from "express";
-import ElectionContract from "../../web3";
+import { ElectionChain } from "../../chain";
 
-export default async (_: Request, res: Response) => {
-  const instance = await ElectionContract.deployed();
-
-  const status = await instance.getStatus();
-
-  return res.send({ status });
+export default (chain: ElectionChain) => async (_req: Request, res: Response) => {
+  res.send({ status: await chain.status() });
 };

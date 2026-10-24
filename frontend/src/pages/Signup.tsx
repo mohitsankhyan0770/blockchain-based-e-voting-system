@@ -9,7 +9,7 @@ const schema = Yup.object().shape({
   name: Yup.string().min(3).required(),
   email: Yup.string().email("Invalid email").required("Required"),
   citizenshipNumber: Yup.string().min(4).required(),
-  password: Yup.string().min(3).required("Required"),
+  password: Yup.string().min(8, "At least 8 characters").max(72).required("Required"),
   confirm: Yup.string()
     .oneOf([Yup.ref("password")], "must be same as password")
     .required(),

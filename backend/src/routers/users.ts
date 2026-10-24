@@ -1,12 +1,17 @@
 import { Router } from "express";
+import { Config } from "../config";
+import deleteController from "../controllers/users/delete";
 import notVerifiedController from "../controllers/users/not-verified";
 import verifyController from "../controllers/users/verify";
-import deleteController from "../controllers/users/delete";
+import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { asyncHandler } from "../utils/http";
 
-const router = Router();
+export default (config: Config) => {
+  const router = Router();
+  router.use(requireAuth(config), requireAdmin); // every user-management route is admin-only
 
-router.get("/all", notVerifiedController);
-router.post("/verify", verifyController);
-router.delete("/delete/:id", deleteController);
-
-export default router;
+  router.get("/all", asyncHandler(notVerifiedController));
+  router.post("/verify", asyncHandler(verifyController));
+  router.delete("/delete/:id", asyncHandler(deleteController));
+  return router;
+};

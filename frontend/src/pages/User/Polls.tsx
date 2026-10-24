@@ -18,8 +18,6 @@ const User = () => {
   const authContext = useContext(AuthContext);
 
   useEffect(() => {
-    console.log("called here ?");
-
     axios
       .get("/polls/status")
       .then((res) => {
@@ -33,20 +31,17 @@ const User = () => {
     if (voteState !== "checking") {
       axios.get("/polls/").then((res) => {
         setData(res.data);
-        console.log(res);
         setLoading(false);
       });
 
       axios
-        .post("/polls/check-voteability", {
-          id: authContext.id.toString(),
-        })
+        .post("/polls/check-voteability")
         .then((res) => {
           setVotable(res.data);
         })
-        .catch((err) => console.log(err));
+        .catch(() => setVotable(""));
     }
-  });
+  }, [voteState]);
 
   if (loading || voteState === "checking") return <div></div>;
 

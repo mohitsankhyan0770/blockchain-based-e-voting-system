@@ -1,61 +1,30 @@
 import { Request, Response } from "express";
-import ElectionContract, { web3 } from "../../web3";
-// import memoryCache from "memory-cache";
 import * as yup from "yup";
+import { ChainError, ElectionChain } from "../../chain";
+import { HttpError } from "../../utils/http";
+import { validate } from "../../utils/validate";
 
-const checkSchema = yup.object({
-  body: yup.object({
-    id: yup.string().required(),
-  }),
-});
+// Who is voting always comes from the verified login token (req.user), never from the request body.
+// The original API trusted an `id` and `name` sent by the browser, so anyone could vote as anyone.
+const schema = yup.object({ candidate: yup.string().trim().min(1).max(100).required() });
 
-export const checkVoteability = async (req: Request, res: Response) => {
-  try {
-    await checkSchema.validate(req);
-  } catch (error) {
-    return res.status(400).send({ error });
-  }
-
-  const instance = await ElectionContract.deployed();
-  const voters: Array<any> = await instance.getVoters();
-  const status: "not-started" | "running" | "finished" =
-    await instance.getStatus();
-
-  if (status !== "running") return res.status(400).send("election not running");
-  if (voters.includes(req.body.id)) return res.send("already-voted");
-
-  return res.send("not-voted");
+export const checkVoteability = (chain: ElectionChain) => async (req: Request, res: Response) => {
+  if ((await chain.status()) !== "running") throw new HttpError(400, "election not running");
+  res.send((await chain.hasVoted(req.user!.id)) ? "already-voted" : "not-voted");
 };
 
-const schema = yup.object({
-  body: yup.object({
-    id: yup.string().required(),
-    name: yup.string().min(3).required(),
-    candidate: yup.string().min(3).required(),
-  }),
-});
+export default (chain: ElectionChain) => async (req: Request, res: Response) => {
+  const { candidate } = await validate(schema, req.body);
 
-export default async (req: Request, res: Response) => {
   try {
-    await schema.validate(req);
-  } catch (error: any) {
-    return res.status(400).send(error.errors);
+    await chain.vote(req.user!.id, candidate);
+  } catch (error) {
+    if (error instanceof ChainError) {
+      if (error.code === "ALREADY_VOTED") throw new HttpError(409, "already voted");
+      if (error.code === "INVALID_CANDIDATE") throw new HttpError(400, "no such candidate");
+      if (error.code === "NOT_RUNNING") throw new HttpError(400, "election not running");
+    }
+    throw error;
   }
-
-  const accounts = await web3.eth.getAccounts();
-  const instance = await ElectionContract.deployed();
-  const voters: Array<any> = await instance.getVoters();
-  const candidates: Array<any> = await instance.getCandidates();
-
-  if (voters.includes(req.body.id))
-    return res.status(400).send("already voted");
-
-  if (!candidates.includes(req.body.candidate))
-    return res.status(400).send("no such candidate");
-
-  await instance.vote(req.body.id, req.body.name, req.body.candidate, {
-    from: accounts[0],
-  });
-
-  return res.send("successful");
+  res.send("successful");
 };

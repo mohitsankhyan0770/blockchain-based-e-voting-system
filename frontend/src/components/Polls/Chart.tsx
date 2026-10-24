@@ -16,11 +16,7 @@ const Chart = (props: ChartProps) => {
 
     const vote = (candidate: string) => {
       axios
-        .post("/polls/vote", {
-          id: props.userId?.toString(),
-          name: props.userName,
-          candidate,
-        })
+        .post("/polls/vote", { candidate })
         .then((_) => window.location.reload())
         .catch((err) => console.log({ err }));
     };
